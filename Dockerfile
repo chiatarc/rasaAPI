@@ -7,8 +7,10 @@ WORKDIR /home/app
 # Copy all files
 COPY . /home/app/
 
-# Install dependencies globally
-RUN pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
+# Create a dedicated virtual environment inside the app directory
+RUN python -m venv /home/app/venv && \
+    . /home/app/venv/bin/activate && \
+    pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
     pip install --no-cache-dir poetry && \
     poetry install --no-root --no-interaction && \
     poetry build -f wheel -n && \
@@ -26,11 +28,11 @@ COPY --from=builder /home/app /home/app
 
 # Set environment variables
 ENV HOME=/home/app
-ENV PATH="/home/app/.local/bin:$PATH"
+ENV PATH="/home/app/venv/bin:$PATH"
+
+# Ensure the entrypoint is correct
+ENTRYPOINT ["rasa"]
+CMD ["run", "--enable-api", "--cors", "*"]
 
 # Expose Rasa API port
 EXPOSE 5005
-
-# **Use absolute path for entrypoint**
-ENTRYPOINT ["/usr/local/bin/rasa"]
-CMD ["run", "--enable-api", "--cors", "*"]
