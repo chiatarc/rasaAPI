@@ -8,13 +8,17 @@ WORKDIR /home/app
 COPY . /home/app/
 
 # Set user early to avoid permission issues
-USER 1001
+USER root
 
-# Install Poetry
-RUN pip install --no-cache-dir "poetry" && \
-    python -m venv /home/app/venv && \
+# Set a writable directory for pip installs
+ENV PYTHONUSERBASE=/home/app/.local
+ENV PATH="${PYTHONUSERBASE}/bin:${PATH}"
+
+# Install dependencies in a writable directory
+RUN python -m venv /home/app/venv && \
     . /home/app/venv/bin/activate && \
-    pip install --no-cache-dir -U "pip==22.*" "wheel>0.38.0" && \
+    pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
+    pip install --no-cache-dir poetry --user && \
     poetry install --no-dev --no-root --no-interaction && \
     poetry build -f wheel -n && \
     pip install --no-deps dist/*.whl && \
