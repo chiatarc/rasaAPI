@@ -2,14 +2,17 @@
 FROM rasa/rasa:3.6.21-full as builder
 
 # Set working directory
-WORKDIR /build
+WORKDIR /app
 
 # Copy all files
-COPY . /build/
+COPY . /app/
 
-# Create and activate virtual environment
-RUN python -m venv /opt/venv && \
-    . /opt/venv/bin/activate && \
+# Ensure correct permissions
+RUN chown -R 1001:1001 /app && chmod -R 755 /app
+
+# Create and activate virtual environment in a writable directory
+RUN python -m venv /app/venv && \
+    . /app/venv/bin/activate && \
     pip install --no-cache-dir -U "pip==22.*" "wheel>0.38.0" && \
     poetry install --no-dev --no-root --no-interaction && \
     poetry build -f wheel -n && \
@@ -20,17 +23,17 @@ RUN python -m venv /opt/venv && \
 FROM rasa/rasa:3.6.21-full as runner
 
 # Copy installed virtual environment from builder stage
-COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/venv /app/venv
 
 # Set environment variables
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/app/venv/bin:$PATH"
 ENV HOME=/app
 
 # Set working directory
 WORKDIR /app
 
 # Update permissions and avoid running as root
-RUN chgrp -R 0 /app && chmod -R g=u /app && chmod o+wr /app
+RUN chown -R 1001:1001 /app && chmod -R 755 /app
 USER 1001
 
 # Expose Rasa API port
