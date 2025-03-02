@@ -26,6 +26,7 @@ COPY --from=builder /home/app /home/app
 
 # Set environment variables
 ENV HOME=/home/app
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Set working directory
 WORKDIR /home/app
@@ -33,6 +34,9 @@ WORKDIR /home/app
 # Expose Rasa API port
 EXPOSE 5005
 
-# Run Rasa
-ENTRYPOINT ["rasa"]
+# Ensure Rasa is in the PATH
+RUN chmod +x /usr/local/bin/rasa
+
+# **Change ENTRYPOINT to absolute path**
+ENTRYPOINT ["/usr/local/bin/rasa"]
 CMD ["run", "--enable-api", "--cors", "*"]
