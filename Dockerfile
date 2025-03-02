@@ -7,8 +7,8 @@ USER root
 # Set working directory
 WORKDIR /home/app
 
-# Copy all files
-COPY . /home/app/
+# Copy only necessary files first (improves caching)
+COPY pyproject.toml poetry.lock /home/app/
 
 # Ensure dependencies are up-to-date
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel poetry packaging
@@ -18,10 +18,11 @@ RUN python -m venv /home/app/venv && \
     /bin/bash -c "source /home/app/venv/bin/activate && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir poetry && \
-    poetry install --no-root --no-interaction && \
-    poetry build -f wheel -n && \
-    pip install --no-deps dist/*.whl && \
-    rm -rf dist *.egg-info"
+    poetry config virtualenvs.create false && \
+    poetry install --no-root --no-interaction --no-ansi"
+
+# Copy the rest of the application code
+COPY . /home/app/
 
 # Use a fresh base Rasa image for running the application
 FROM rasa/rasa:3.6.21-full as runner
@@ -29,7 +30,7 @@ FROM rasa/rasa:3.6.21-full as runner
 # Set working directory
 WORKDIR /home/app
 
-# Copy installed dependencies from builder stage
+# Copy installed dependencies and application files from builder stage
 COPY --from=builder /home/app /home/app
 
 # Set environment variables
