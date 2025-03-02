@@ -7,15 +7,18 @@ WORKDIR /home/app
 # Copy all files
 COPY . /home/app/
 
-# Create a dedicated virtual environment inside the app directory
+# Ensure dependencies are up-to-date
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel poetry packaging
+
+# Create and activate a virtual environment
 RUN python -m venv /home/app/venv && \
-    . /home/app/venv/bin/activate && \
-    pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
+    /bin/bash -c "source /home/app/venv/bin/activate && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir poetry && \
     poetry install --no-root --no-interaction && \
     poetry build -f wheel -n && \
     pip install --no-deps dist/*.whl && \
-    rm -rf dist *.egg-info
+    rm -rf dist *.egg-info"
 
 # Use a fresh base Rasa image for running the application
 FROM rasa/rasa:3.6.21-full as runner
@@ -30,8 +33,11 @@ COPY --from=builder /home/app /home/app
 ENV HOME=/home/app
 ENV PATH="/home/app/venv/bin:$PATH"
 
+# Ensure Rasa has execution permissions
+RUN chmod +x /home/app/venv/bin/rasa
+
 # Ensure the entrypoint is correct
-ENTRYPOINT ["rasa"]
+ENTRYPOINT ["/home/app/venv/bin/rasa"]
 CMD ["run", "--enable-api", "--cors", "*"]
 
 # Expose Rasa API port
