@@ -1,6 +1,9 @@
 # Use official Rasa image as base
 FROM rasa/rasa:3.6.21-full as builder
 
+# Switch to root user to install packages
+USER root
+
 # Set working directory
 WORKDIR /home/app
 
@@ -8,9 +11,9 @@ WORKDIR /home/app
 COPY . /home/app/
 
 # Ensure dependencies are up-to-date
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel poetry packaging
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel poetry packaging
 
-# Create and activate a virtual environment
+# Create and activate a virtual environment inside the app directory
 RUN python -m venv /home/app/venv && \
     /bin/bash -c "source /home/app/venv/bin/activate && \
     pip install --no-cache-dir --upgrade pip && \
@@ -35,6 +38,9 @@ ENV PATH="/home/app/venv/bin:$PATH"
 
 # Ensure Rasa has execution permissions
 RUN chmod +x /home/app/venv/bin/rasa
+
+# Switch back to non-root user (recommended for security)
+USER 1001
 
 # Ensure the entrypoint is correct
 ENTRYPOINT ["/home/app/venv/bin/rasa"]
