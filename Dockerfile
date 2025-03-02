@@ -10,8 +10,9 @@ COPY . /home/app/
 # Set user early to avoid permission issues
 USER 1001
 
-# Create and activate virtual environment in a writable directory
-RUN python -m venv /home/app/venv && \
+# Install Poetry
+RUN pip install --no-cache-dir "poetry" && \
+    python -m venv /home/app/venv && \
     . /home/app/venv/bin/activate && \
     pip install --no-cache-dir -U "pip==22.*" "wheel>0.38.0" && \
     poetry install --no-dev --no-root --no-interaction && \
