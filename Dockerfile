@@ -1,16 +1,13 @@
-# Use official Rasa image as base builder
+# Use official Rasa image as base
 FROM rasa/rasa:3.6.21-full as builder
 
-# Create a writable working directory
+# Set working directory
 WORKDIR /home/app
 
 # Copy all files
 COPY . /home/app/
 
-# Set user early to avoid permission issues
-USER root
-
-# Install dependencies globally (no virtualenv needed)
+# Install dependencies globally
 RUN pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
     pip install --no-cache-dir poetry && \
     poetry install --no-root --no-interaction && \
@@ -21,6 +18,9 @@ RUN pip install --no-cache-dir --upgrade pip "wheel>0.38.0" && \
 # Use a fresh base Rasa image for running the application
 FROM rasa/rasa:3.6.21-full as runner
 
+# Set working directory
+WORKDIR /home/app
+
 # Copy installed dependencies from builder stage
 COPY --from=builder /home/app /home/app
 
@@ -28,15 +28,9 @@ COPY --from=builder /home/app /home/app
 ENV HOME=/home/app
 ENV PATH="/home/app/.local/bin:$PATH"
 
-# Set working directory
-WORKDIR /home/app
-
 # Expose Rasa API port
 EXPOSE 5005
 
-# **Remove chmod step (not needed)**
-# Ensure Rasa is in the PATH (it already is)
-
-# Run the Rasa server
-ENTRYPOINT ["rasa"]
+# **Use absolute path for entrypoint**
+ENTRYPOINT ["/usr/local/bin/rasa"]
 CMD ["run", "--enable-api", "--cors", "*"]
