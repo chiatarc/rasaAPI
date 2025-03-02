@@ -1,48 +1,41 @@
-# The default Docker image
-ARG IMAGE_BASE_NAME
-ARG BASE_IMAGE_HASH
-ARG BASE_BUILDER_IMAGE_HASH
+# Use official Rasa image as base builder
+FROM rasa/rasa:3.6.21-full as builder
 
-FROM ${IMAGE_BASE_NAME}:base-builder-${BASE_BUILDER_IMAGE_HASH} as builder
-# copy files
-COPY . /build/
-
-# change working directory
+# Set working directory
 WORKDIR /build
 
-# install dependencies
+# Copy all files
+COPY . /build/
+
+# Create and activate virtual environment
 RUN python -m venv /opt/venv && \
-  . /opt/venv/bin/activate && \
-  pip install --no-cache-dir -U "pip==22.*" -U "wheel>0.38.0" && \
-  poetry install --no-dev --no-root --no-interaction && \
-  poetry build -f wheel -n && \
-  pip install --no-deps dist/*.whl && \
-  rm -rf dist *.egg-info
+    . /opt/venv/bin/activate && \
+    pip install --no-cache-dir -U "pip==22.*" "wheel>0.38.0" && \
+    poetry install --no-dev --no-root --no-interaction && \
+    poetry build -f wheel -n && \
+    pip install --no-deps dist/*.whl && \
+    rm -rf dist *.egg-info
 
-# start a new build stage
-FROM ${IMAGE_BASE_NAME}:base-${BASE_IMAGE_HASH} as runner
+# Use a fresh base Rasa image for running the application
+FROM rasa/rasa:3.6.21-full as runner
 
-# copy everything from /opt
+# Copy installed virtual environment from builder stage
 COPY --from=builder /opt/venv /opt/venv
 
-# make sure we use the virtualenv
+# Set environment variables
 ENV PATH="/opt/venv/bin:$PATH"
-
-# set HOME environment variable
 ENV HOME=/app
 
-# update permissions & change user to not run as root
+# Set working directory
 WORKDIR /app
+
+# Update permissions and avoid running as root
 RUN chgrp -R 0 /app && chmod -R g=u /app && chmod o+wr /app
 USER 1001
 
-# create a volume for temporary data
-VOLUME /tmp
-
-# change shell
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-# the entry point
+# Expose Rasa API port
 EXPOSE 5005
+
+# Run Rasa
 ENTRYPOINT ["rasa"]
-CMD ["--help"]
+CMD ["run", "--enable-api", "--cors", "*"]
